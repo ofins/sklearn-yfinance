@@ -15,11 +15,11 @@ def calculate_rsi(data, periods=14):
     rsi = 100 - (100 / (1 + rs))
     return rsi
 
-# 1. Fetch historical data from Yahoo Finance
-symbol = "SPY"  # Example: SPY (S&P 500 ETF), change to your preferred ticker
+# 1. Fetch historical 5-minute data from Yahoo Finance
+symbol = "AMD"  # AMD stock
 stock = yf.Ticker(symbol)
-# Get data as far back as possible (Yahoo Finance limits vary by asset)
-data = stock.history(period="max", interval="1d")  # Daily candles
+# Get 5-minute data as far back as possible (max 60 days for intraday)
+data = stock.history(period="60d", interval="5m")  # 5-minute candles, 60 days max
 data = data[["Open", "High", "Low", "Close", "Volume"]].dropna()
 
 # 2. Calculate RSI and define baseline strategy signals
@@ -29,7 +29,7 @@ data["Returns"] = data["Close"].pct_change()
 # Baseline strategy: Buy when RSI < 30, Sell when RSI > 70
 data["Signal"] = np.where(data["RSI"] < 30, 1, 0)  # 1 = Buy
 data["Signal"] = np.where(data["RSI"] > 70, -1, data["Signal"])  # -1 = Sell, 0 = Hold
-data["Target"] = data["Signal"].shift(-1)  # Next day's action (what we predict)
+data["Target"] = data["Signal"].shift(-1)  # Next 5-min action (what we predict)
 
 # Drop NaN values (from RSI calculation and shifting)
 data = data.dropna()
@@ -39,6 +39,7 @@ print("Baseline Strategy (RSI < 30 Buy, RSI > 70 Sell):")
 buy_signals = len(data[data["Signal"] == 1])
 sell_signals = len(data[data["Signal"] == -1])
 print(f"Buy Signals: {buy_signals}, Sell Signals: {sell_signals}")
+print(f"Total 5-min Candles: {len(data)}")
 
 # 3. Prepare data for ML
 features = data[["Close", "Volume", "RSI"]]  # Features to train on
@@ -69,6 +70,6 @@ print(f"Predicted Next Action (based on latest RSI: {latest_data['RSI'].values[0
 print("\nLatest Data:")
 print(latest_data)
 
-# Simulate applying it to "today" (assuming latest data is up to yesterday)
-today = datetime.datetime.now().strftime("%Y-%m-%d")
-print(f"\nAs of {today}, based on historical data, the model suggests: {action[next_prediction]}")
+# Simulate applying it to "now" (assuming latest data is up to the last 5-min candle)
+now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+print(f"\nAs of {now}, based on historical 5-min data, the model suggests: {action[next_prediction]}")
